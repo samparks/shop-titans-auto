@@ -16,7 +16,7 @@ class CityInvestmentScanWorkflow(BaseWorkflow):
     
     name = "city-investment-scan"
     description = "Extracts investment progress from all city buildings"
-    csv_columns = ["building_name", "current_investment", "max_investment"]
+    csv_columns = ["building_name", "level", "current_investment", "max_investment"]
     window_title = "Shop Titans"
     
     # All building names from the game
@@ -131,8 +131,8 @@ class CityInvestmentScanWorkflow(BaseWorkflow):
         
         print(f"[WORKFLOW] Complete! Recorded {len(self.collected_data)} buildings.")
         
-        # Step 8: Post to Discord
-        self.post_results_to_discord()
+        # Step 8: Ask to post to Discord
+        self.maybe_post_to_discord()
     
     def detect_building_name_fast(self, image: Image.Image) -> Optional[str]:
         """
@@ -157,18 +157,20 @@ class CityInvestmentScanWorkflow(BaseWorkflow):
         """Record building data to CSV and memory."""
         self.write_row(
             building_name=building_data["name"],
+            level=building_data["level"],
             current_investment=building_data["current"],
             max_investment=building_data["max"],
         )
         self.collected_data.append({
             "building_name": building_data["name"],
+            "level": building_data["level"],
             "current_investment": building_data["current"],
             "max_investment": building_data["max"],
         })
-        print(f"[WORKFLOW] Recorded: {building_data['name']} - {building_data['current']}/{building_data['max']}")
+        print(f"[WORKFLOW] Recorded: {building_data['name']} (Lv.{building_data['level']}) - {building_data['current']}/{building_data['max']}")
     
-    def post_results_to_discord(self):
-        """Post collected results to Discord."""
+    def maybe_post_to_discord(self):
+        """Ask user and optionally post results to Discord."""
         webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
         
         if not webhook_url:
@@ -177,6 +179,15 @@ class CityInvestmentScanWorkflow(BaseWorkflow):
         
         if not self.collected_data:
             print("[INFO] No data collected, skipping Discord post")
+            return
+        
+        # Ask for confirmation
+        print("\n" + "=" * 50)
+        print(f"Ready to post {len(self.collected_data)} buildings to Discord.")
+        response = input("Post to Discord? [y/N]: ").strip().lower()
+        
+        if response != 'y' and response != 'yes':
+            print("[INFO] Skipped posting to Discord")
             return
         
         print("[WORKFLOW] Posting results to Discord...")
@@ -190,8 +201,8 @@ class CityInvestmentScanWorkflow(BaseWorkflow):
             webhook_url=webhook_url,
             title="🏰 City Investment Report",
             data=sorted_data,
-            columns=["building_name", "current_investment", "max_investment"],
-            column_headers=["Building", "Current", "Max"]
+            columns=["building_name", "level", "current_investment", "max_investment"],
+            column_headers=["Building", "Lv", "Current", "Max"]
         )
         
         if success:

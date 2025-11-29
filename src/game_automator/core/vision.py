@@ -17,8 +17,8 @@ def image_to_base64(image: Image.Image) -> str:
 
 def extract_building_info(image: Image.Image, api_key: Optional[str] = None) -> Optional[dict]:
     """
-    Use Claude to extract building name and investment progress from screenshot.
-    Returns dict with 'name', 'current', 'max' or None if extraction failed.
+    Use Claude to extract building name, level, and investment progress from screenshot.
+    Returns dict with 'name', 'level', 'current', 'max' or None if extraction failed.
     """
     if api_key is None:
         api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -48,14 +48,15 @@ def extract_building_info(image: Image.Image, api_key: Optional[str] = None) -> 
                     {
                         "type": "text",
                         "text": """Look at this game screenshot and extract:
-1. The building name (e.g., "Laboratory", "Academy", "Wizard Tower")
-2. The investment progress shown on the progress bar (e.g., "1,139/2,000")
+1. The building name (e.g., "Laboratory", "Academy", "Wizard Tower", "Tailor Workshop")
+2. The building level (the number in the purple/pink shield icon next to the building name, e.g., "17")
+3. The investment progress shown on the progress bar (e.g., "19/2,000")
 
 Respond with ONLY a single line in this exact format:
-BUILDING_NAME|CURRENT|MAX
+BUILDING_NAME|LEVEL|CURRENT|MAX
 
 For example:
-Laboratory|1139|2000
+Tailor Workshop|17|19|2000
 
 If you cannot find the information, respond with:
 NOT_FOUND"""
@@ -72,11 +73,12 @@ NOT_FOUND"""
     
     try:
         parts = response_text.split("|")
-        if len(parts) == 3:
+        if len(parts) == 4:
             return {
                 "name": parts[0].strip(),
-                "current": parts[1].strip().replace(",", ""),
-                "max": parts[2].strip().replace(",", ""),
+                "level": parts[1].strip(),
+                "current": parts[2].strip().replace(",", ""),
+                "max": parts[3].strip().replace(",", ""),
             }
     except Exception:
         pass
@@ -120,14 +122,15 @@ async def extract_building_info_async(
                     {
                         "type": "text",
                         "text": """Look at this game screenshot and extract:
-1. The building name (e.g., "Laboratory", "Academy", "Wizard Tower")
-2. The investment progress shown on the progress bar (e.g., "1,139/2,000")
+1. The building name (e.g., "Laboratory", "Academy", "Wizard Tower", "Tailor Workshop")
+2. The building level (the number in the purple/pink shield icon next to the building name, e.g., "17")
+3. The investment progress shown on the progress bar (e.g., "19/2,000")
 
 Respond with ONLY a single line in this exact format:
-BUILDING_NAME|CURRENT|MAX
+BUILDING_NAME|LEVEL|CURRENT|MAX
 
 For example:
-Laboratory|1139|2000
+Tailor Workshop|17|19|2000
 
 If you cannot find the information, respond with:
 NOT_FOUND"""
@@ -154,13 +157,14 @@ NOT_FOUND"""
                 return {"index": index, "error": "NOT_FOUND"}
             
             parts = response_text.split("|")
-            if len(parts) == 3:
+            if len(parts) == 4:
                 return {
                     "index": index,
                     "data": {
                         "name": parts[0].strip(),
-                        "current": parts[1].strip().replace(",", ""),
-                        "max": parts[2].strip().replace(",", ""),
+                        "level": parts[1].strip(),
+                        "current": parts[2].strip().replace(",", ""),
+                        "max": parts[3].strip().replace(",", ""),
                     }
                 }
             
@@ -185,7 +189,6 @@ async def extract_all_buildings_async(
     if not api_key:
         raise ValueError("ANTHROPIC_API_KEY not set.")
     
-    # Limit concurrent requests
     semaphore = asyncio.Semaphore(max_concurrent)
     
     async def limited_extract(session, image, index):
@@ -199,7 +202,6 @@ async def extract_all_buildings_async(
         ]
         results = await asyncio.gather(*tasks)
     
-    # Sort by index and extract data
     results.sort(key=lambda x: x["index"])
     
     output = []
