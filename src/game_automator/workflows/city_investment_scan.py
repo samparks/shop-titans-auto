@@ -29,22 +29,15 @@ class CityInvestmentScanWorkflow(BaseWorkflow):
         "Wizard Tower", "Wood Workshop",
     ]
     
-    # Screen definitions
-    screens = {
-        "shop": Screen(
-            landmarks=[Landmark(text="City", region=Region(80, 900, 100, 80))]
-        ),
-        "city": Screen(
-            landmarks=[Landmark(text="Shop", region=Region(180, 900, 100, 80))]
-        ),
-        "building_detail": Screen(
-            landmarks=[Landmark(text="Investment", region=Region(200, 640, 150, 50))]
-        ),
-    }
-    
     def __init__(self):
         super().__init__()
         self.collected_data: List[Dict] = []
+    
+    def click_percent(self, x_percent: float, y_percent: float):
+        """Click at a position defined as percentage of window size."""
+        x = int(self.window["width"] * x_percent)
+        y = int(self.window["height"] * y_percent)
+        self.click(x, y)
     
     def run(self):
         self.collected_data = []
@@ -107,7 +100,9 @@ class CityInvestmentScanWorkflow(BaseWorkflow):
         self.sleep(1)
         
         print("[WORKFLOW] Returning to shop...")
-        self.find_and_click("Shop")
+        if not self.find_and_click("Shop"):
+            # Fallback: Shop button is at bottom left ~15% from left, ~95% from top
+            self.click_percent(0.15, 0.95)
         self.sleep(1)
         
         # Step 6: Process all screenshots with Claude (async/parallel)
@@ -215,9 +210,19 @@ class CityInvestmentScanWorkflow(BaseWorkflow):
             print(f"[WORKFLOW] Attempt {attempt}/{max_retries}: clicking '{click_text}'...")
             
             if not self.find_and_click(click_text):
-                print(f"[WORKFLOW] Could not find '{click_text}' on screen")
-                self.sleep(1)
-                continue
+                # Fallback positions for known buttons (percentage-based)
+                fallback_positions = {
+                    "City": (0.12, 0.95),    # Bottom nav, left side
+                    "Shop": (0.15, 0.95),    # Bottom nav, left side
+                }
+                if click_text in fallback_positions:
+                    x_pct, y_pct = fallback_positions[click_text]
+                    print(f"[WORKFLOW] Using fallback position for '{click_text}'")
+                    self.click_percent(x_pct, y_pct)
+                else:
+                    print(f"[WORKFLOW] Could not find '{click_text}' on screen")
+                    self.sleep(1)
+                    continue
             
             self.sleep(1.5)
             
@@ -270,5 +275,11 @@ class CityInvestmentScanWorkflow(BaseWorkflow):
         return False
     
     def close_building_panel(self):
-        if not self.find_and_click("X"):
-            self.click(680, 610)
+        """Close the building panel by finding and clicking the X button."""
+        # Try to find X button via OCR first
+        if self.find_and_click("X"):
+            return
+        
+        # Fallback: X button is at ~88% width, ~58% height of window
+        print("[DEBUG] X button not found via OCR, using fallback position")
+        self.click_percent(0.88, 0.58)
