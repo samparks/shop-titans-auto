@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "game-automator"
+version = "0.1.0"
+description = "Automated workflows for Shop Titans"
+requires-python = ">=3.9"
+dependencies = [
+    "mss>=9.0.0",
+    "pyobjc-framework-Quartz>=10.0",
+    "pyautogui>=0.9.54",
+    "easyocr>=1.7.0",
+    "Pillow>=10.0.0",
+    "PyYAML>=6.0",
+    "click>=8.0.0",
+]
+
+[project.scripts]
+game-automator = "game_automator.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

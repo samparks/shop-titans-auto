@@ -1,0 +1,11 @@
+mss>=9.0.0
+pyobjc-framework-Quartz>=10.0
+pyautogui>=0.9.54
+easyocr>=1.7.0
+Pillow>=10.0.0
+PyYAML>=6.0
+click>=8.0.0
+pynput>=1.7.6
+anthropic>=0.39.0
+requests
+aiohttp
